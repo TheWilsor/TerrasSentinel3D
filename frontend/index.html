@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TerraSentinel 3D — Mission Control</title>
+  <link rel="stylesheet" href="css/hud.css" />
+</head>
+<body>
+  <div id="globe-container"></div>
+  <div id="scanline"></div>
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-icon">◈</span>
+      <span class="brand-name">TERRASENTINEL<span class="dim">/3D</span></span>
+      <span class="badge">MISSION CONTROL</span>
+    </div>
+    <div class="telemetry">
+      <div class="telem"><label>UTC</label><span id="t-clock">--:--:--</span></div>
+      <div class="telem"><label>EVENTOS</label><span id="t-events">0</span></div>
+      <div class="telem"><label>SATÉLITES</label><span id="t-sats">0</span></div>
+      <div class="telem"><label>ESTADO</label><span id="t-status" class="ok">● LIVE</span></div>
+    </div>
+  </header>
+  <div id="progress-track"><div id="progress-fill"></div></div>
+
+  <button class="edge-toggle" id="toggle-left" title="Mostrar/ocultar panel de filtros">◧</button>
+  <button class="edge-toggle" id="toggle-right" title="Mostrar/ocultar panel de análisis">◨</button>
+
+  <aside id="panel-left" class="hud-panel">
+    <button class="collapse-btn" data-panel="left" title="Colapsar panel">✕</button>
+    <h2 class="panel-title">FILTROS OPERATIVOS</h2>
+
+    <div id="sync-indicator" class="sync-indicator">
+      <span id="sync-pct">SYNC 0%</span>
+      <span id="sync-detail">iniciando…</span>
+    </div>
+
+    <h3>Capas de análisis global</h3>
+    <div id="filter-groups">
+      <div class="filter-group" data-group="heat">
+        <div class="fg-head">
+          <label class="chk"><span class="dot" style="--c:#ff7a2f"></span>Puntos de calor / Densidad de nubes<input type="checkbox" data-layer="heat" /></label>
+          <button class="isolate-btn" data-group="heat" title="Aislar esta capa">AISLAR</button>
+        </div>
+        <p class="fg-desc">Focos térmicos e infrarrojos de tormentas activas</p>
+      </div>
+      <div class="filter-group" data-group="storm">
+        <div class="fg-head">
+          <label class="chk"><span class="dot" style="--c:#ffd166"></span>Tornados y tormentas severas<input type="checkbox" data-cat="storm" checked /></label>
+          <button class="isolate-btn" data-group="storm" title="Aislar esta capa">AISLAR</button>
+        </div>
+        <p class="fg-desc">Trayectorias y conos de afectación proyectados</p>
+      </div>
+      <div class="filter-group" data-group="seismic">
+        <div class="fg-head">
+          <label class="chk"><span class="dot" style="--c:#ff5555"></span>Terremotos y tsunamis<input type="checkbox" data-cat-group="seismic" checked /></label>
+          <button class="isolate-btn" data-group="seismic" title="Aislar esta capa">AISLAR</button>
+        </div>
+        <p class="fg-desc">Epicentros y anillos de magnitud</p>
+      </div>
+      <div class="filter-group" data-group="hydro">
+        <div class="fg-head">
+          <label class="chk"><span class="dot" style="--c:#38bdf8"></span>Inundaciones y volcanes<input type="checkbox" data-cat-group="hydro" checked /></label>
+          <button class="isolate-btn" data-group="hydro" title="Aislar esta capa">AISLAR</button>
+        </div>
+        <p class="fg-desc">Cuencas hídricas, desbordes y flujos piroclásticos</p>
+      </div>
+    </div>
+
+    <h3>Región</h3>
+    <select id="region-select">
+      <option value="world">Global</option>
+      <option value="americas">Américas</option>
+      <option value="europe">Europa / África</option>
+      <option value="asia">Asia / Oceanía</option>
+    </select>
+
+    <h3>Histórico temporal</h3>
+    <div id="snapshots" class="snap-list">Cargando snapshots…</div>
+
+    <div class="panel-footer">
+      <span id="left-status">Sincronizando telemetría…</span>
+    </div>
+  </aside>
+
+  <aside id="panel-right" class="hud-panel">
+    <button class="collapse-btn" data-panel="right" title="Colapsar panel">✕</button>
+    <h2 class="panel-title">ANÁLISIS PREDICTIVO</h2>
+
+    <!-- Visor táctico de imagen satelital -->
+    <div id="tacviewer" class="tac-viewer">
+      <div class="tac-toolbar">
+        <button class="band-btn active" data-band="optical">ÓPTICO REAL</button>
+        <button class="band-btn" data-band="thermal">TÉRMICO</button>
+        <button class="band-btn" data-band="change">CAMBIO / DEVASTACIÓN</button>
+      </div>
+      <div class="tac-frame">
+        <canvas id="tac-canvas" width="544" height="360"></canvas>
+        <div class="tac-zoom">
+          <button id="tac-zin" title="Acercar">+</button>
+          <button id="tac-zout" title="Alejar">−</button>
+          <button id="tac-expand" title="Expandir a pantalla completa">⛶</button>
+        </div>
+        <div class="tac-grid"></div>
+        <div class="tac-reticle"></div>
+        <div class="tac-hud">
+          <span id="tac-lat">LAT ---.----</span>
+          <span id="tac-lon">LON ---.----</span>
+          <span id="tac-alt">ALT --- km</span>
+          <span id="tac-sat">SAT ---</span>
+        </div>
+        <div class="tac-fallback hidden" id="tac-fallback">SIN ENLACE · VISTA SINTÉTICA</div>
+      </div>
+    </div>
+
+    <!-- Tarjeta de enlace satelital -->
+    <div id="sat-link" class="sat-link-card">
+      <div class="sat-signal"><span class="signal-bars"><i></i><i></i><i></i></span></div>
+      <div class="sat-info">
+        <label>ENLACE SATELITAL ACTIVO</label>
+        <div class="sat-name" id="sl-name">— SIN ENLACE —</div>
+        <div class="sat-meta" id="sl-meta">Selecciona un objetivo en el globo</div>
+      </div>
+    </div>
+
+    <div id="report" class="report">
+      <p class="muted">Selecciona un marcador de desastre o haz clic en el globo para ejecutar la evaluación de impacto y rastrear el satélite de observación más cercano.</p>
+    </div>
+
+    <div id="report-details" class="report-details hidden">
+      <div class="report-block" id="loc-block"></div>
+      <div class="report-block" id="status-block"></div>
+      <div class="report-block" id="impact-block"></div>
+      <div class="report-block" id="recs-block"></div>
+    </div>
+
+    <h3>Comparación temporal</h3>
+    <div class="compare-row">
+      <select id="cmp-a"></select>
+      <span class="dim">vs</span>
+      <select id="cmp-b"></select>
+      <button id="cmp-btn" class="btn">Comparar</button>
+    </div>
+    <div id="cmp-result" class="snap-list"></div>
+
+    <div class="panel-footer actions">
+      <button id="export-btn" class="btn primary">⭳ Exportar reporte JSON</button>
+      <button id="live-btn" class="btn">↻ Refrescar eventos</button>
+    </div>
+  </aside>
+
+  <div id="toast" class="hidden"></div>
+
+  <!-- Modal táctico a pantalla completa -->
+  <div id="tac-modal" class="tac-modal hidden">
+    <div class="tac-modal-inner">
+      <div class="tac-modal-head">
+        <div class="tac-modal-title">
+          <span class="brand-icon">◈</span> VISOR TÁCTICO · RECONOCIMIENTO DE ALTA RESOLUCIÓN
+        </div>
+        <div class="tac-toolbar">
+          <button class="band-btn" data-band="optical">ÓPTICO REAL</button>
+          <button class="band-btn" data-band="thermal">TÉRMICO</button>
+          <button class="band-btn" data-band="change">CAMBIO / DEVASTACIÓN</button>
+        </div>
+        <div class="tac-modal-tools">
+          <button id="tm-zin">+</button>
+          <button id="tm-zout">−</button>
+          <button id="tm-close">✕ ESC</button>
+        </div>
+      </div>
+      <canvas id="tac-modal-canvas"></canvas>
+      <div class="tac-modal-hud">
+        <span id="tm-lat">LAT ---</span>
+        <span id="tm-lon">LON ---</span>
+        <span id="tm-zoom">Z ---</span>
+        <span id="tm-sat">SAT ---</span>
+        <span class="tm-hint">RUEDA: zoom · ARRASTRE: pan · DOBLE CLIC: cerrar</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/globe.gl.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
